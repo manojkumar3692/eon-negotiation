@@ -1,74 +1,33 @@
 "use client";
-import { useEffect, useState } from 'react';
+import {useEffect,useState} from "react";
 
-const sourceLabel = {live:'Live',merchant_configured:'Store configuration',derived:'Calculated by store',stale:'Expired',unavailable:'Missing'};
-export default function StoreConnection({workspace}) {
-  const [connection,setConnection]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[now,setNow]=useState(Date.now());
-  const [variant,setVariant]=useState(''),[quantity,setQuantity]=useState('1'),[payment,setPayment]=useState('prepaid'),[promotion,setPromotion]=useState(''),[country,setCountry]=useState('IN'),[postal,setPostal]=useState(''),[changed,setChanged]=useState(true);
-  async function api(body) {
-    const response=await fetch(`/api/platform/workspaces/${workspace.id}/installation`,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});
-    const value=await response.json();if(!response.ok)throw Error(value.error||'Could not load connection.');return value;
-  }
-  useEffect(()=>{let active=true;api().then(v=>{if(active)setConnection(v);}).catch(e=>{if(active)setError(e.message);});const timer=setInterval(()=>setNow(Date.now()),1000);return()=>{active=false;clearInterval(timer);};},[workspace.id]);
-  const result=connection?.result, facts=result?.facts, catalog=facts?.catalog?.value||[];
-  const selected=catalog.find(p=>p.variantId===variant)||catalog[0];
-  const expired=!!result && Date.parse(result.expiresAt)<=now;
-  const usable=!!result && !expired && !changed && connection.status==='read_only';
-  const money=n=>new Intl.NumberFormat('en',{style:'currency',currency:workspace.currency}).format(n/100);
-  async function run(body) {
-    setBusy(true);setError('');
-    try {
-      let value=await api(body);
-      if(body.action==='connect')value=await api({action:'test'});
-      setConnection(value);setNow(Date.now());
-      if(body.action==='test'||body.action==='connect')setChanged(false);
-    }catch(e){setError(e.message);}finally{setBusy(false);}
-  }
-  function changedInput(setter){return e=>{setter(e.target.value);setChanged(true);};}
-  return <section className="panel" style={{padding:28,marginBottom:24}} aria-label="Store connection">
-    <div className="section-head"><div><span className="eyebrow">YOUR STORE, CONNECTED</span><h2>{workspace.name} · store connection</h2><p>Read the store’s catalog and check an actual cart before you enable negotiation.</p></div><span className="pill amber">Read-only testing</span></div>
+export default function StoreConnection({workspace,products=[]}) {
+  const [state,setState]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[endpoint,setEndpoint]=useState(`https://api.${workspace.domain}/negotiation/v3`),[setup,setSetup]=useState(null),[shop,setShop]=useState(""),[selected,setSelected]=useState(""),[shipping,setShipping]=useState({});
+  async function api(body){const response=await fetch(`/api/platform/workspaces/${workspace.id}/installation`,{method:body?"POST":"GET",headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined,cache:"no-store"}),value=await response.json();if(!response.ok)throw Error(value.error||"Connection request failed.");return value;}
+  async function reload(){setState(await api());}
+  useEffect(()=>{let active=true;api().then(v=>active&&setState(v)).catch(e=>active&&setError(e.message));return()=>{active=false};},[workspace.id]);
+  async function run(body){setBusy(true);setError("");try{const result=await api(body);if(result.setupSecret)setSetup({installationId:result.id,secret:result.setupSecret});await reload();return result;}catch(e){setError(e.message);}finally{setBusy(false);}}
+  const linked=products.filter(p=>p.externalVariantId),product=linked.find(p=>p.id===selected)||linked[0];
+  const money=n=>new Intl.NumberFormat("en",{style:"currency",currency:workspace.currency}).format((n||0)/100),toMinor=value=>{const n=Number(value);if(!Number.isFinite(n)||n<0)throw Error("Enter a valid shipping amount.");return Math.round(n*100);};
+  const platformOrigin=typeof window==="undefined"?"https://eon-negotiation.vercel.app":window.location.origin;
+  return <section className="panel" style={{padding:28,marginBottom:24}} aria-label="Live commerce connections">
+    <div className="section-head"><div><span className="eyebrow">LIVE COMMERCE</span><h2>Connect {workspace.name}</h2><p>Custom stores and Shopify use the same catalog, context, pricing and checkout contract.</p></div><span className="pill green">Contract v3</span></div>
     {error&&<p className="notice error" role="alert">{error}</p>}
-    {!connection&&!error&&<p role="status">Loading connection…</p>}
-    {connection&&!connection.configured&&<>
-      <ol><li>Connect your store’s approved data source.</li><li>Choose a product and check its current cart price.</li><li>Review missing data before activation.</li></ol>
-      <p>{connection.localAvailable?'Your local store connection is ready. Its dedicated credential stays on the server.':'Ask your store administrator to provision a read-only connection for this workspace.'}</p>
-      <button className="primary" disabled={busy||!connection.localAvailable} onClick={()=>run({action:'connect'})}>{busy?'Connecting to your store…':'Connect local store'}</button>
-    </>}
-    {connection?.configured&&<>
-      <div className="notice" role="status"><div><strong>{busy?'Checking store…':connection.status==='failed'?'Connection needs attention':connection.status==='not_tested'?'Connected · not checked':expired?'Connected · refresh required':'Connected · read-only'}</strong><p>{connection.error||'Requests go to your merchant server. No order or payment is created.'}</p>
-      {connection.lastSuccessAt&&<small>Last successful check: {new Date(connection.lastSuccessAt).toLocaleString()}{result&&` · ${expired?'Result expired':'Result expires at '+new Date(result.expiresAt).toLocaleTimeString()}`}</small>}</div></div>
-      <button className="secondary" disabled={busy} onClick={()=>run({action:'test'})}>{busy?'Checking…':'Refresh store connection'}</button>
-      {catalog.length>0&&<>
-        <h3 style={{marginTop:24}}>1. Check a cart from your store</h3><p>{catalog.length} products returned by your store. Base prices are shown below; your cart check includes selected promotions and quantity pricing.</p>
-        <form onSubmit={e=>{e.preventDefault();run({action:'test',cart:{currency:workspace.currency,lines:[{productId:selected.productId,variantId:selected.variantId,quantity:Number(quantity)}],promotionCodes:promotion.trim()?[promotion.trim().toUpperCase()]:[],paymentMethod:payment,destination:postal.trim()?{country:country.toUpperCase(),postalCode:postal.trim()}:null}});}}>
-          <div className="form-grid">
-            <label>Store product<select value={selected?.variantId||''} onChange={changedInput(setVariant)}>{catalog.map(p=><option key={p.variantId} value={p.variantId}>{p.name} · {p.size} · {money(p.basePriceMinor)}</option>)}</select></label>
-            <label>Quantity<input type="number" min="1" max="20" required value={quantity} onChange={changedInput(setQuantity)}/></label>
-            <label>Payment method<select value={payment} onChange={changedInput(setPayment)}><option value="prepaid">Pay in full</option><option value="partial_cod">Token now + cash on delivery</option></select></label>
-            <label>Promotion code (optional)<input maxLength={200} value={promotion} onChange={changedInput(setPromotion)} placeholder="Enter a store promotion"/></label>
-            <label>Destination country<input minLength={2} maxLength={2} required value={country} onChange={changedInput(setCountry)}/></label>
-            <label>Postal code (optional)<input maxLength={16} value={postal} onChange={changedInput(setPostal)} placeholder="For shipping context"/></label>
-          </div><button className="primary" disabled={busy} type="submit">{busy?'Checking your cart…':'Check store price'}</button>
-        </form>
-      </>}
-      {result?.operation==='context'&&facts?.sellingPrice?.value&&<div style={{marginTop:24,padding:24,background:'var(--surface, #f4f5ef)',borderRadius:16}} aria-label="Store price result">
-        <span className={'pill '+(usable?'green':'amber')}>{usable?'Verified store response':changed?'Cart changed · check again':'Expired result · check again'}</span>
-        <h3>Store cart total: {money(facts.sellingPrice.value.totalMinor)}</h3>
-        <p>Before promotion: {money(facts.sellingPrice.value.subtotalMinor)} · Discount: {money(facts.sellingPrice.value.discountMinor)}</p>
-        {facts.payment.value&&<p>Pay now: {money(facts.payment.value.chargeNowMinor)} · Due on delivery: {money(facts.payment.value.balanceDueMinor)}</p>}
-        <p>Applied promotions: {facts.promotions.value?.applied.join(', ')||'None'}</p>
-        <small>This is the current store price for this test cart. It is not a negotiated offer. Delivery eligibility and freight cost remain unverified.</small>
-      </div>}
-      {facts&&<>
-        <h3 style={{marginTop:24}}>2. Review data readiness</h3>
-        <div className="table-wrap"><table><thead><tr><th>Required data</th><th>Source / status</th><th>What happens next</th></tr></thead><tbody>
-          {[['catalog','Products'],['sellingPrice','Cart price'],['taxBasis','Tax basis'],['inventory','Available stock'],['economics','Approved price floors'],['shipping','Shipping'],['sales','Comparable sales'],['payment','Payment constraints']].map(([key,label])=>{const f=facts[key];return <tr key={key}><td>{label}</td><td>{expired&&f.status!=='unavailable'?'Expired':sourceLabel[f.status]}</td><td>{f.requirement||f.source}</td></tr>;})}
-        </tbody></table></div>
-        <h3 style={{marginTop:24}}>3. Choose your shipping approach</h3>
-        <label>Shipping mode<select disabled={busy} value={connection.shippingMode} onChange={e=>run({action:'shipping',mode:e.target.value})}><option value="unconfigured">Choose an approach</option><option value="flat">Merchant-approved flat rate</option><option value="zone_table">Country / zone rate table</option><option value="live_quote">Live quote from store</option></select></label>
-        <p className="fine">This saves your setup preference only. Rate amounts, coverage and serviceability still need approval; choosing a mode does not supply a shipping cost.</p>
-        <div className="notice"><div><strong>Activation is blocked</strong><ul>{result.requirements.map(r=><li key={r}>{r}</li>)}</ul><button className="secondary" disabled>Activate negotiation</button></div></div>
-      </>}
+    {!state?<p>Loading connections…</p>:<>
+      <div className="notice"><div><strong>{state.domainVerified?"Company domain verified":"Verify company domain"}</strong>{!state.domainVerified&&<><p>Add this TXT record at <code>_eon-negotiation.{state.workspaceDomain}</code>:</p><code>{state.domainVerificationRecord}</code><div><button className="secondary" disabled={busy} onClick={()=>run({action:"verify_domain"})}>Check DNS record</button></div></>}</div></div>
+      <div className="rules-grid">
+        <form className="panel inset" onSubmit={e=>{e.preventDefault();run({action:"configure_custom",endpoint});}}><h3>Custom store endpoint</h3><p>For Supabase, custom code, digital products, services or B2B. Your server keeps its database credentials.</p><label>HTTPS endpoint<input value={endpoint} onChange={e=>setEndpoint(e.target.value)} required/></label><button className="primary" disabled={busy}>Generate installation secret</button>{setup&&<div className="notice"><div><strong>Copy these backend values now</strong><p>Store them only in the merchant backend environment. Regenerating the connection replaces the secret.</p><code>{`NEGOTIATION_INSTALLATION_ID=${setup.installationId}\nNEGOTIATION_CONNECTOR_SECRET=${setup.secret}`}</code></div></div>}</form>
+        <form className="panel inset" onSubmit={e=>{e.preventDefault();window.location.assign(`/api/integrations/shopify/start?workspaceId=${encodeURIComponent(workspace.id)}&shop=${encodeURIComponent(shop)}`);}}><h3>Shopify</h3><p>OAuth grants scoped access to products, inventory and negotiated draft-order checkout.</p><label>.myshopify.com domain<input value={shop} onChange={e=>setShop(e.target.value)} placeholder="your-store.myshopify.com" required/></label><button className="primary" disabled={busy||!state.shopifyConfigured}>{state.shopifyConfigured?"Install Shopify app":"Shopify app credentials required"}</button></form>
+      </div>
+      {!state.installations.length&&<div className="notice"><strong>No live store connected.</strong><span>Configure one custom endpoint or install the Shopify app.</span></div>}
+      {state.installations.map(item=><div className="panel inset" key={item.id} style={{marginTop:20}}>
+        <div className="section-head"><div><span className="eyebrow">{item.provider.toUpperCase()}</span><h3>{item.shopDomain||item.endpoint}</h3><p>Status: {item.status.replaceAll("_"," ")} · Mode: {item.activationStatus}</p></div><span className={`pill ${item.status==="ready"?"green":"amber"}`}>{item.status}</span></div>
+        {item.error&&<p className="notice error">{item.error}</p>}
+        <div className="button-row"><button className="secondary" disabled={busy} onClick={()=>run({action:"test",installationId:item.id})}>Check capabilities</button><button className="secondary" disabled={busy} onClick={()=>run({action:"sync",installationId:item.id})}>Sync catalog</button>{item.activationStatus==="paused"?<button className="secondary" disabled={busy} onClick={()=>run({action:"activate",installationId:item.id})}>Activate</button>:<button className="secondary" disabled={busy} onClick={()=>run({action:"pause",installationId:item.id})}>Pause</button>}</div>
+        {linked.length>0&&<><h4>Verify a real cart</h4><div className="form-grid"><label>Product<select value={product?.id||""} onChange={e=>setSelected(e.target.value)}>{linked.map(p=><option value={p.id} key={p.id}>{p.name} · {money(p.priceMinor)}</option>)}</select></label><label>Postal code<input id={`postal-${item.id}`} placeholder="600001"/></label></div><button className="primary" disabled={busy||!product} onClick={()=>{const postal=document.getElementById(`postal-${item.id}`).value.trim();run({action:"test",installationId:item.id,cart:{currency:workspace.currency,lines:[{productId:product.externalProductId,variantId:product.externalVariantId,quantity:1}],promotionCodes:[],paymentMethod:"prepaid",destination:postal?{country:"IN",postalCode:postal}:null}})}}>Verify price, stock and checkout</button></>}
+        <h4>Shipping assumption for native adapters</h4><p className="fine">Custom endpoints return their own live shipping facts. Shopify can use merchant-approved amounts until a carrier quote adapter is connected. Leave country blank to allow all destinations.</p><div className="form-grid"><label>Country code<input value={shipping[item.id]?.country||""} maxLength={2} placeholder="IN" onChange={e=>setShipping(v=>({...v,[item.id]:{...v[item.id],country:e.target.value.toUpperCase()}}))}/></label><label>Merchant cost ({workspace.currency})<input type="number" min="0" step="0.01" value={shipping[item.id]?.cost||""} onChange={e=>setShipping(v=>({...v,[item.id]:{...v[item.id],cost:e.target.value}}))}/></label><label>Customer charge ({workspace.currency})<input type="number" min="0" step="0.01" value={shipping[item.id]?.charge||""} onChange={e=>setShipping(v=>({...v,[item.id]:{...v[item.id],charge:e.target.value}}))}/></label></div><div className="button-row"><button className="secondary" disabled={busy} onClick={()=>run({action:"shipping",installationId:item.id,mode:"none",merchantCostMinor:0,customerChargeMinor:0,countries:[]})}>No shipping</button><button className="secondary" disabled={busy} onClick={()=>{try{const draft=shipping[item.id]||{},country=(draft.country||"").trim();if(country&&!/^[A-Z]{2}$/.test(country))throw Error("Use a two-letter country code.");run({action:"shipping",installationId:item.id,mode:"flat",merchantCostMinor:toMinor(draft.cost||0),customerChargeMinor:toMinor(draft.charge||0),countries:country?[country]:[]});}catch(e){setError(e.message);}}}>Save flat shipping</button></div>
+        {item.publicKey&&<div className="notice"><div><strong>Customer widget test is ready</strong><p>The snippet uses the selected synchronized product. Production activation still requires verified domain ownership.</p><code>{`<script src="${platformOrigin}/widget.js" data-workspace="${item.publicKey}" data-product="${product?.externalProductId||"PRODUCT_ID"}" data-variant="${product?.externalVariantId||"VARIANT_ID"}" data-currency="${workspace.currency}"></script>`}</code></div></div>}
+      </div>)}
     </>}
   </section>;
 }

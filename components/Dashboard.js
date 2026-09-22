@@ -718,20 +718,20 @@ export default function Dashboard({ demo = false, user }) {
                       [
                         Plug,
                         "Live commerce connections",
-                        "0",
-                        "Setup comes before activation",
+                        String(data.liveMetrics?.connections || 0).padStart(2, "0"),
+                        data.liveMetrics?.ready_connections ? "Fresh cart checks passed" : "Setup comes before activation",
                       ],
                       [
                         Package,
                         "Products in catalog",
                         String(data.products.length).padStart(2, "0"),
-                        "Merchant-entered snapshots",
+                        "Manual and synchronized variants",
                       ],
                       [
-                        FlaskConical,
-                        "Saved simulations",
-                        String(data.simulations.length).padStart(2, "0"),
-                        "Test outcomes, not paid orders",
+                        Activity,
+                        "Customer sessions · 30 days",
+                        String(data.liveMetrics?.sessions || 0).padStart(2, "0"),
+                        `${data.liveMetrics?.paid || 0} verified paid checkout(s)`,
                       ],
                     ].map(([Icon, label, value, note]) => (
                       <div className="stat-card" key={label}>
@@ -796,9 +796,9 @@ export default function Dashboard({ demo = false, user }) {
                           data.products.length ? "Manual data" : "Not added",
                           !!data.products.length,
                         ],
-                        ["Live availability", "Not connected", false],
-                        ["Delivery quotes", "Not connected", false],
-                        ["Checkout enforcement", "Not connected", false],
+                        ["Live availability", data.liveMetrics?.ready_connections ? "Verified" : "Not connected", !!data.liveMetrics?.ready_connections],
+                        ["Delivery economics", data.liveMetrics?.ready_connections ? "Connector checked" : "Not connected", !!data.liveMetrics?.ready_connections],
+                        ["Checkout enforcement", data.liveMetrics?.ready_connections ? "Idempotent handoff ready" : "Not connected", !!data.liveMetrics?.ready_connections],
                       ].map(([label, status, done]) => (
                         <div className="data-line" key={label}>
                           <span>
@@ -908,7 +908,7 @@ export default function Dashboard({ demo = false, user }) {
               )}
               {tab === "Connections" && (
                 <>
-                  {!demo && <StoreConnection key={workspace.id} workspace={workspace} />}
+                  {!demo && <StoreConnection key={workspace.id} workspace={workspace} products={data.products} />}
                   <div className="connector-toolbar">
                     <div className="filter-tabs">
                       {categories.map((c) => (

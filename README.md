@@ -4,9 +4,9 @@ A standalone, multi-merchant negotiation platform. House of EON is the first ref
 
 ## Current build
 
-The merchant dashboard supports owner-managed company workspaces, manual/CSV catalogs, versioned guardrails, inventory/shipping/history scenario tests, connector setup choices and audit history. Data persists on the isolated Neon `dashboard-onboarding` branch. `/demo` is an interactive sample with temporary browser-only data; `/dashboard` requires Neon Auth.
+The merchant dashboard supports owner-managed company workspaces, manual/CSV and synchronized catalogs, versioned guardrails, domain verification, live connector checks and audit history. Data persists in Neon. `/demo` is an interactive sample; `/dashboard` requires Neon Auth.
 
-Shopify, WooCommerce, BigCommerce and custom APIs are described in the connector catalogue. Only the manual catalog is operational. Saving another connector does not authorize or connect it. Live offers, checkout, automatic sync and activation remain disabled.
+Custom HTTPS connector v3 and Shopify OAuth are implemented behind one normalized commerce interface. The live engine uses fresh price, inventory, floor, shipping and payment context; creates durable AI-assisted sessions; reserves daily discount budget; and hands accepted quotes to idempotent merchant checkout. Signed webhooks reconcile paid, cancelled and refunded checkouts. WooCommerce and BigCommerce remain future provider adapters.
 
 Read [the current onboarding and connector plan](docs/ONBOARDING-PLATFORM.md) and [the next-build handoff](docs/HANDOFF.md). Earlier documents retain historical Supabase drafts and INR prototype assumptions; the current Neon dashboard plan takes precedence for platform work. Further edits to the EON website remain paused.
 
@@ -36,9 +36,9 @@ The migration was applied on `dashboard-onboarding`; DB tests refuse other branc
 
 ## Where AI fits
 
-`src/openai.js` extracts shopper intent; `src/chat.js` confirms it and applies deterministic merchant rules. The earlier local INR shopper prototype is available with `npm run dev:legacy` (stop the dashboard if sharing port 3000). Existing local OpenAI credentials remain server-only.
+`lib/live/ai.js` extracts shopper intent while `lib/live/rules.js` remains the only price authority. The customer confirms a target before the server evaluates it. Floors, costs, policy and private connector facts are never sent to the model. Numeric offers still work when the AI provider is unavailable.
 
-The dashboard simulator is arithmetic scenario testing, not AI dialogue. It accepts merchant-entered stock/shipping/history inputs. The next engine milestone connects authenticated merchant policies and trusted connector facts to durable AI conversations through one shared evaluator. AI never receives private floors or gets authority to set prices.
+The dashboard simulator remains a merchant-only scenario tool. The customer widget uses the durable live engine and never treats the model as a pricing authority.
 
 ## Repository
 
@@ -51,7 +51,9 @@ lib/repository.js            Tenant-scoped persistence
 lib/validation.js            Shared input/CSV validation
 lib/simulate.js              Merchant-only scenario evaluator
 lib/connectors.js            Capability catalogue and default policy
-lib/connectors/contract.js   Custom adapter response schema (design scaffold)
+lib/commerce/               Custom and Shopify providers plus normalized v3 contract
+lib/connector-kit/          Reference merchant endpoint and signed event helpers
+lib/live/                   Durable conversation, pricing and checkout orchestration
 db/migrations/               Current Neon platform schema
 scripts/                     Explicit migration and isolated DB integration checks
 src/                         Earlier shopper AI/rules/context prototype
@@ -63,6 +65,6 @@ neon.ts, hello.ts             Separate Neon hello function config
 
 ## Verification and limits
 
-25 unit tests and the development-database integration checks passed at initial implementation. Production compilation passed. Browser onboarding, catalog, rules and simulations are checked separately in the handoff. No real customer/store data was imported, and no live checkout was enabled. Signup verification emails and a complete signed-in browser journey still require acceptance testing with a merchant-owned account. Team invitations, account recovery UI, native OAuth adapters, quotas and public production hardening are future milestones.
+Automated tests cover arithmetic guardrails, connector encryption/binding, response freshness, endpoint restrictions, Shopify OAuth helpers, request signing and replay claims. Database integration checks cover tenant isolation and persistence. A real Shopify development-store install and the House of EON staging adapter remain required acceptance tests before enabling `NEGOTIATION_ENABLED` in production.
 
-The Next.js dashboard has not been publicly deployed. `neon deploy` publishes the separate configured hello function; it does not deploy this dashboard. No GitHub remote was created in this turn.
+The dashboard is deployed through Vercel. `neon deploy` publishes the separate configured hello function and is not the Next.js deployment command.

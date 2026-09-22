@@ -1,35 +1,49 @@
-# Next build handoff
+# Current build handoff
 
-The current priority is the independent platform in `/Users/manoj/Documents/eon-negotiation`. EON website integration is paused. Read README and ONBOARDING-PLATFORM.md first. The platform uses Neon; EON keeps Supabase. Older Supabase/platform integration-first documents are historical.
+The independent platform lives in `/Users/manoj/Documents/eon-negotiation`. House of EON is the first reference merchant and keeps its Supabase database. The platform uses Neon and consumes only normalized, merchant-approved facts through a narrow connector.
 
-## Completed
+## Implemented
 
-- Next.js merchant dashboard: eight sections, multi-company selection, validation, empty states, CSV preview/import and explicit connector readiness.
-- Neon Auth SDK wiring, protected server page/API, same-origin POST checks and bounded input. No server secrets in client configuration.
-- Neon schema on isolated `dashboard-onboarding` branch of `calm-fog-75034810`.
-- PostgreSQL RLS, restricted role, owner-only access, transactional catalog/audit writes, immutable policy versions with concurrency lock and expected-version check.
-- Merchant arithmetic simulator and a custom context-contract schema scaffold. Existing OpenAI shopper prototype preserved separately.
-- Unit checks, real two-principal database isolation/persistence checks, production build and unauthenticated HTTP checks.
+- Protected multi-company merchant dashboard, Neon Auth, PostgreSQL RLS, versioned policies, catalog management, simulator and audit history.
+- Custom commerce connector contract v3 for any non-Shopify backend. It covers capabilities, catalog, live cart context, enforced checkout and reconciliation. Requests are tenant-bound, timestamped, nonce-protected and HMAC-signed. Endpoint setup is restricted to the company domain, public DNS is checked before each call and redirects are disabled.
+- Shopify standalone OAuth with one-time state, callback HMAC validation, encrypted expiring offline credentials and refresh rotation. The adapter synchronizes products/inventory, reads fresh cart context and creates idempotent discounted draft-order checkout.
+- Customer widget and `/offer/:publicKey` conversation UI. AI extracts shopper intent; deterministic server rules alone authorize prices. A numeric fallback remains available when AI is down.
+- Durable sessions, turns and quotes; fresh-context revalidation; atomic daily discount-budget reservations; idempotent checkout attempts; signed payment/cancellation/refund events; and live dashboard counters.
+- Company-domain verification, connector diagnostics, real-cart readiness check, merchant-configured shipping assumptions, activation/pause controls and copyable widget installation snippet.
 
-## Immediate next work
+## Production safety state
 
-1. Complete account signup/verification, sign-in/sign-out and persisted onboarding in the browser with an owner-controlled account. Add recovery, verification resends, quotas and rate limiting before public signup. Do not claim this acceptance flow was completed merely because SDK routes respond.
-2. Create the registered Shopify development app and test store; choose app distribution and exact callback URLs. Implement official standalone OAuth flow for this dashboard, nonce/state binding, signature verification, encrypted installation tokens, revocation/uninstall and scoped read-only sync. Use official libraries. No app client credentials were discovered/configured this turn.
-3. Implement source/mapping review and live capability readiness: synchronization time, missing economics, unavailable shipping, approved product eligibility and connector diagnostics. Add bounded retry/outbox/reconciliation jobs rather than long serverless requests.
-4. Implement a server-to-server custom context adapter in this repository, with SSRF-safe egress, signed requests, replay protection and contract tests. Only resume changes to the EON codebase when the user resumes that work.
-5. Consolidate dashboard simulation and existing contextual/live prototype rules into one approved, versioned evaluator. Introduce durable sessions/turns/quotes and connect the existing OpenAI intent layer. Do not expose floors to shoppers or AI.
-6. Add atomic daily budget reservations, current-quote validation, idempotent checkout handoff, verified payment/refund webhooks and exact amount/currency/quantity checks. Then widget and controlled pilot.
+`NEGOTIATION_ENABLED=false` must remain set in production until a real connector passes staging. The code and schema are deployable, but no House of EON checkout or Shopify development-store order has yet completed the full install → negotiate → pay → webhook path. Do not describe either native integration as accepted until those tests pass.
 
-## Database operations
+Newly synchronized products default their approved minimum to retail, so they cannot discount until the merchant reviews them. A connector can be tested before domain verification, but production activation requires a ready connector and verified domain. Floors, costs, policy and credentials never enter the widget or AI prompt.
 
-`npm run db:migrate` applies the current single idempotent migration to the selected branch. `npm run test:db` only accepts `dashboard-onboarding`, generates synthetic principals/workspaces and removes only those fixtures. Migration URLs and role privileges are server-only. Every application operation must use `tenant()` and identity from `getAuth().getSession()`. Never accept a user ID from a request body. The default privileged Neon connection is not a replacement for RLS: the transaction switches to `negotiation_app` before tenant SQL.
+## Next task: House of EON staging
 
-## Known scope limits
+Work in `HOUSE_OF_EON_MINI_STORE` only after this platform deployment is healthy.
 
-Owner-only workspaces; six two-decimal currencies; 500 manual products; 200 CSV rows per import. No live connector client, domain verification, credential storage, worker, team management, real budget spending, orders or revenue analytics. Simulation stock/history are explicit scenario inputs. Quote validity and daily budget settings are saved but not full live reservation services. The dashboard is local; production Neon still has its separate hello function.
+1. Add one server-only `/api/negotiation/v3` endpoint using `lib/connector-kit/index.js` as the reference.
+2. Read EON product, current price, available stock and comparable completed-sale aggregates from its existing Supabase server client. Do not send the Supabase service key to this platform.
+3. Map EON checkout creation to an exact, non-stackable negotiated quote and persist the platform idempotency key.
+4. Send signed paid, cancelled and refunded events back to the platform.
+5. Connect the EON workspace, sync the catalog, review each floor, configure shipping, run a real-cart test and verify the domain.
+6. Install the widget on one staging product and complete concurrency, expiry, price change, stock change, remote postcode, payment failure and webhook-retry tests.
+7. Enable negotiation only for that staging cohort. Keep the connector kill switch available.
 
-## Validation notes
+## Shopify acceptance still required
 
-All 25 unit tests passed. The real Neon development test passed cross-tenant read/write denial (including direct SQL under the restricted role), upsert, all-or-nothing import validation, immutable versions, stale publish conflict, connector setup persistence, simulations and audits. Build passed. HTTP checks returned 401 for anonymous platform reads and redirected the dashboard to login; incorrect origins were rejected. Confirm the configured local origin remains 127.0.0.1:3000.
+Create a Shopify Partner/Dev Dashboard app, set the callback and webhook routes in [SHOPIFY-SETUP.md](SHOPIFY-SETUP.md), add the Vercel environment credentials, and install it on a development store. Verify token refresh, catalog sync, minimum-price review, draft-order invoice total, paid event, cancellation, refund, uninstall and a second-store isolation test.
 
-Browser acceptance uses `/demo`, clearly temporary. It covers a second company in AED, manual product creation, rule publication, bounded counteroffer, out-of-stock rejection, connector setup state, switching companies and mobile layout. It does not establish real auth/signup, OAuth installation or production checkout.
+## Verification
+
+Run:
+
+```sh
+npm test
+npm run build
+npm run db:migrate
+npm run test:db
+```
+
+Development database integration tests intentionally require `NEON_BRANCH=dashboard-onboarding`. Production migration requires `node --env-file=<reviewed-production-env> scripts/migrate.js --production` and must be run separately from Vercel deployment.
+
+The development watcher can hit the macOS open-file limit in this workspace. `npm run build && npm run start` is the stable local acceptance path.

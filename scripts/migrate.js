@@ -13,14 +13,11 @@ const client = new pg.Client({
 await client.connect();
 try {
   await client.query("begin");
-  await client.query(
-    await fs.readFile(
-      new URL("../db/migrations/001_dashboard.sql", import.meta.url),
-      "utf8",
-    ),
-  );
+  const directory=new URL("../db/migrations/",import.meta.url);
+  const files=(await fs.readdir(directory)).filter(name=>name.endsWith(".sql")).sort();
+  for(const file of files)await client.query(await fs.readFile(new URL(file,directory),"utf8"));
   await client.query("commit");
-  console.log("Dashboard migration applied to", process.env.NEON_BRANCH);
+  console.log(`${files.length} migrations applied to`, process.env.NEON_BRANCH);
 } catch (e) {
   await client.query("rollback");
   throw e;
