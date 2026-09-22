@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { authClient } from "../../lib/auth-client.js";
+import { getAuthErrorMessage } from "../../lib/auth-error.js";
 import { ArrowUpRight, ArrowRight, ShieldCheck } from "lucide-react";
 export default function Login() {
   const [signup, setSignup] = useState(false),
@@ -32,8 +33,8 @@ export default function Login() {
             "Account created. Complete the verification instructions sent by the identity provider, then sign in.",
           );
       }
-    } catch {
-      setMessage("Authentication is unavailable. Please try again.");
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error));
     } finally {
       setBusy(false);
     }
