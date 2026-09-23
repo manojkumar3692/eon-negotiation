@@ -10,3 +10,11 @@ test('economic capability is insufficient without confirmed import and approved 
 test('readiness uses approved rules without retaining an initial catalog-only floor',()=>{const c=fixture(),p=approvedReadinessProduct(product,c);assert.equal(p.floor_minor,70000);assert.equal(product.floor_minor,99900);const result=validateCartReadiness(context,c,p,policy);assert.equal(result.line.approvedFloorMinor,70000);assert.equal(result.shipping.merchantCostMinor,5000);assert.equal(context.shipping.merchantCostMinor,null);});
 test('missing expense, bad destination and unsupported payment block readiness',()=>{const c=fixture(),p=approvedReadinessProduct(product,c);c.shipping.costMinor=null;assert.throws(()=>validateCartReadiness(context,c,p,policy),/delivery cost/);c.shipping.costMinor=5000;assert.throws(()=>validateCartReadiness({...context,shipping:{...context.shipping,serviceable:null}},c,p,policy),/destination/);assert.throws(()=>validateCartReadiness({...context,payment:{supported:false,feeMinor:0}},c,p,policy),/payment/);});
 test('impossible economics and changed selling price block readiness',()=>{const c=fixture(),p=approvedReadinessProduct(product,c);c.products[0].floorMinor=98000;assert.throws(()=>validateCartReadiness(context,c,p,policy),/exceeds the selling price/);assert.throws(()=>validateCartReadiness({...context,line:{...context.line,unitPriceMinor:124900}},c,p,policy),/conflicts/);});
+
+test('cart errors identify the selected product and the missing approval',()=>{
+ const p={...product,name:'Desert Tonka',price_minor:99900};const c=fixture();
+ c.products[0].enabled=false;assert.throws(()=>approvedReadinessProduct(p,c),/Desert Tonka is not enabled/);
+ c.products[0].enabled=true;c.products[0].costMinor=null;assert.throws(()=>approvedReadinessProduct(p,c),/product cost for Desert Tonka/);
+ c.products[0].costMinor=40000;c.products[0].floorMinor=0;assert.throws(()=>approvedReadinessProduct(p,c),/protected minimum for Desert Tonka/);
+ c.products[0].floorMinor=124900;assert.throws(()=>approvedReadinessProduct(p,c),/exceed its current selling price/);
+});

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  cartTestSelection,
   backendEnvironment,
   catalogSource,
   connectorDiagnostic,
@@ -47,4 +48,13 @@ test("successful legacy cart tests retain verified capability presentation", () 
   assert.deepEqual(ready.missing,[]);
   assert.equal(connectorReadiness({...installation,status:"failed"}).negotiationReady,false);
   assert.equal(connectorReadiness({...installation,result:{operation:"context",checkoutSupported:false}}).negotiationReady,false);
+});
+
+test("cart testing selects the enabled product rather than the first catalog item",()=>{
+ const products=[{id:'disabled',externalVariantId:'d'},{id:'arctic',externalVariantId:'a'}];
+ const rules=[{id:'disabled',ready:false},{id:'arctic',ready:true}];
+ assert.equal(cartTestSelection(products,rules,'disabled').product.id,'arctic');
+ assert.deepEqual(cartTestSelection(products,rules).eligible.map(p=>p.id),['arctic']);
+ assert.equal(cartTestSelection(products,[]).product,null);
+ assert.equal(cartTestSelection(products,undefined).product,null);
 });
