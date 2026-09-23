@@ -1,3 +1,4 @@
+import {conversionState,conversionAction} from '../../../../lib/conversion/repository.js';
 import { connectorState, connectorAction } from "../../../../lib/connectors/installations.js";
 import { getAuth } from "../../../../lib/auth.js";
 import {
@@ -26,6 +27,7 @@ async function handle(req, ctx) {
     const user = session.user.id;
     const { path } = await ctx.params;
     if (req.method === "GET") {
+      if(path.length===3&&path[0]==="workspaces"&&path[2]==="conversion")return json(await conversionState(user,path[1]));
       if (path.join("/") === "workspaces")
         return json(await listWorkspaces(user));
       if (path.length === 3 && path[0] === "workspaces" && path[2] === "installation")
@@ -54,6 +56,7 @@ async function handle(req, ctx) {
       const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
       if (!body || typeof body !== "object" || Array.isArray(body))
         return json({ error: "Expected a JSON object" }, 400);
+      if(path.length===3&&path[0]==="workspaces"&&path[2]==="conversion")return json(await conversionAction(user,path[1],body));
       if (path.join("/") === "workspaces")
         return json(await createWorkspace(user, body), 201);
       if (path.length === 3 && path[0] === "workspaces" && path[2] === "installation")
@@ -71,6 +74,7 @@ async function handle(req, ctx) {
         },
         409,
       );
+    if(e.message.startsWith("Conversion:"))return json({error:e.message.slice(12)},400);
     if (e.message.startsWith("Connector:")) return json({error:e.message.slice(11)},400);
     if (e.message.startsWith("CONNECTOR_")) return json({error:e.message},400);
     if (e instanceof ZodError)

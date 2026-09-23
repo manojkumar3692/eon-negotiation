@@ -40,6 +40,7 @@ import {
 } from "../lib/validation.js";
 import { simulate } from "../lib/simulate.js";
 import StoreConnection from "./StoreConnection.js";
+import ConversionStudio from "./ConversionStudio.js";
 import { authClient } from "../lib/auth-client.js";
 import { catalogSource } from "../lib/connector-ui.js";
 const ids = [
@@ -96,6 +97,13 @@ function sample() {
 }
 const nav = [
   ["Overview", LayoutDashboard],
+  ["Setup", CheckCircle2],
+  ["EON Trigger", Activity],
+  ["EON Rules", ShieldCheck],
+  ["EON Converse", FlaskConical],
+  ["Recovery", Clock3],
+  ["EON Optimize", ArrowUpRight],
+  ["EON Connect", Plug],
   ["Companies", Building2],
   ["Connections", Plug],
   ["Products", Package],
@@ -105,6 +113,13 @@ const nav = [
   ["Settings", Settings2],
 ];
 const headings = {
+  Setup:["Launch your conversion layer","A guided setup using your connected store and saved merchant settings."],
+  "EON Trigger":["Invite at the right moment","Choose when and where negotiation helps a shopper decide."],
+  "EON Rules":["Your commercial boundaries","Configure product floors, shipping terms and approved concessions."],
+  "EON Converse":["A helpful conversation, safe offers","Set your voice and test negotiations against saved rules."],
+  Recovery:["Recover interested shoppers","Configure consented recovery invitations and unique offer links."],
+  "EON Optimize":["Measure profitable conversion","Verified sessions and paid orders, with transparent learning gates."],
+  "EON Connect":["Your connected commerce","One engine for your website, store platform and future channels."],
   Overview: [
     "Your merchant workspace",
     "A clear path from first connection to your first negotiated offer.",
@@ -545,7 +560,7 @@ export default function Dashboard({ demo = false, user }) {
         </div>
         <p className="nav-label">MANAGE</p>
         <nav>
-          {nav.map(([name, Icon]) => (
+          {nav.filter(([name])=>demo||!["Companies","Connections","Rules","Simulator"].includes(name)).map(([name, Icon]) => (
             <button
               key={name}
               onClick={() => select(name)}
@@ -562,7 +577,7 @@ export default function Dashboard({ demo = false, user }) {
             <ShieldCheck size={21} />
             <strong>Start in test mode</strong>
             <p>Explore your rules before a single live offer.</p>
-            <button onClick={() => select("Simulator")}>
+            <button onClick={() => select(demo?"Simulator":"EON Converse")}>
               Open simulator <ArrowRight size={14} />
             </button>
           </div>
@@ -607,7 +622,7 @@ export default function Dashboard({ demo = false, user }) {
           <div className="top-actions">
             <span className="status-dot" />
             <span>
-              {demo ? "Interactive preview" : "Development workspace"}
+              {demo ? "Interactive preview" : "Merchant workspace"}
             </span>
             <a href={demo ? "/login" : "/demo"}>
               {demo ? "Sign in to save" : "View demo"}
@@ -630,11 +645,12 @@ export default function Dashboard({ demo = false, user }) {
               className="primary"
               onClick={() => {
                 setError("");
-                setModal({ type: "company" });
+                if(workspace&&tab!=="Companies")select("Setup");
+                else setModal({ type: "company" });
               }}
             >
               <Plus size={17} />
-              Add company
+              {workspace&&tab!=="Companies"?"Guided setup":"Add company"}
             </button>
           </div>
           {demo && (
@@ -674,6 +690,8 @@ export default function Dashboard({ demo = false, user }) {
             </Empty>
           ) : (
             <>
+              {!demo&&["Setup","EON Trigger","EON Rules","EON Converse","Recovery","EON Optimize","EON Connect"].includes(tab)&&<ConversionStudio key={workspace.id} workspace={workspace} products={data.products} view={tab} onNavigate={select} onChanged={refresh}/>}
+              {demo&&["Setup","EON Trigger","EON Rules","EON Converse","Recovery","EON Optimize","EON Connect"].includes(tab)&&<div className="panel"><h2>Use your saved merchant workspace</h2><p>These modules use authenticated store data.</p><a className="primary" href="/dashboard">Open dashboard</a></div>}
               {tab === "Overview" && (
                 <>
                   <section className="welcome-panel">

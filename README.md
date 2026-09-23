@@ -1,6 +1,14 @@
 # EON Negotiation
 
-A standalone, multi-merchant negotiation platform. House of EON is the first reference customer, not a hardcoded platform dependency. Platform database/auth: Neon. House of EON keeps Supabase. JavaScript, Next.js, Vercel and GitHub.
+> Live dashboard update: see [the integrated release status](docs/LIVE-DASHBOARD-RELEASE.md). Authenticated saved controls now supersede the earlier sandbox-only status below. Checkout/channel limitations remain explicit.
+
+A conversion layer, with House of EON as the mandatory first validation client. No expansion to other clients until the EON usability, paid-order, conversion and margin gates pass. Platform database/auth: Neon. House of EON keeps Supabase. JavaScript, Next.js, Vercel and GitHub.
+
+## Conversion-layer update
+
+Start with [the 14-area product specification](docs/PRODUCT-SPEC.md), [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), [UX flows](docs/UX-FLOWS.md) and [analytics definitions](docs/ANALYTICS.md). The user's latest clarification retains Neon for EON and Supabase for House of EON.
+
+Open `/pilot` for the eight-step House of EON sandbox. It uses fictional editable prices, tests eligibility and concessions, and exports a planning JSON. It does not save live policies, connect a store or produce real checkouts. The new five-module engine is a scaffold; the existing live price-only path is preserved pending integration tests. Migration 006 is supplied but has not been applied.
 
 ## Current build
 
@@ -8,7 +16,7 @@ The merchant dashboard supports owner-managed company workspaces, manual/CSV and
 
 Custom HTTPS connector v3 and Shopify OAuth are implemented behind one normalized commerce interface. The live engine uses fresh price, inventory, floor, shipping and payment context; creates durable AI-assisted sessions; reserves daily discount budget; and hands accepted quotes to idempotent merchant checkout. Signed webhooks reconcile paid, cancelled and refunded checkouts. WooCommerce and BigCommerce remain future provider adapters.
 
-Read [the current onboarding and connector plan](docs/ONBOARDING-PLATFORM.md) and [the next-build handoff](docs/HANDOFF.md). Earlier documents retain historical Supabase drafts and INR prototype assumptions; the current Neon dashboard plan takes precedence for platform work. Further edits to the EON website remain paused.
+Read [the current onboarding and connector plan](docs/ONBOARDING-PLATFORM.md) and [the next-build handoff](docs/HANDOFF.md). Earlier documents retain historical plans; PRODUCT-SPEC.md and ROADMAP.md now take precedence, with Neon retained for the platform. House of EON pilot integration is the next priority; production activation remains gated.
 
 ## Run
 

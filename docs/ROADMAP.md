@@ -1,57 +1,32 @@
-# Product roadmap
+# House of EON first roadmap
 
-> Current priority: build the standalone platform database, merchant dashboard and data-connection contract first. Further EON integration is paused. See [platform-first plan](PLATFORM-FIRST-PLAN.md). Earlier integration-first sequencing below is historical.
+> Live dashboard update: see [the integrated release status](LIVE-DASHBOARD-RELEASE.md). Authenticated saved controls now supersede the earlier sandbox-only status below. Checkout/channel limitations remain explicit.
 
-See `SMART-NEGOTIATION-PLAN.md` for the expanded prioritized capability map and concrete first integration test.
+Stage 2 (human shopper ↔ AI merchant) is the immediate product. Keep EON on Neon/Auth and House of EON on Supabase, per the user's confirmed decision. This replaces earlier platform-first sequencing and blanket exclusion of non-price concessions.
 
-## Updated Stage 2 requirement
+| Milestone | Deliverable | Exit gate |
+|---|---|---|
+| 1 — Product foundation | This specification, five modules, guided sandbox, pricing/concession safety tests, additive schema/API contracts | Local tests/build pass; every requested area mapped honestly |
+| 2 — Persistent merchant setup | Integrate wizard with existing authenticated dashboard; version per-SKU boundaries, trigger rules, capabilities, onboarding drafts and audit | Owner completes connect/import/configure/test flow without developer help; no cross-tenant access |
+| 3 — EON checkout proof | Connect actual EON staging catalog and checkout; bind eligibility, rules, offer grants, budget, provider idempotency and webhooks | Negotiate → accept → pay → reconcile; replay, race, expiry, inventory/price change, failure/refund tests pass |
+| 4 — Concessions and surfaces | Add checkout-verified shipping, quantity, samples/bundles, prepaid/COD and credit one by one; product/chat/cart/page/exit placements | Each enabled term enforced by merchant checkout; no unsupported option visible |
+| 5 — Recovery and measurement | Consented recovery links; reliable outbox; sticky control/treatment cohorts; full funnel and contribution reporting | Paid orders attributed once, opt-out/purchase suppression tested, no simulated data counted |
+| 6 — Controlled House of EON pilot | Small approved traffic cohort, help content, pause/override, weekly commercial review | Gate below is met and owner signs off usefulness |
+| 7 — Expansion only after proof | Shopify development-store acceptance; then a second client and other store adapters | EON gate remains healthy; same core rules require no platform fork |
+| 8 — Future buyer-agent API | Scoped agent auth, structured quote/accept API, buyer consent receipts, quota and protocol adapters | Real authorized agent sandbox transaction; no assumption ChatGPT/Gemini discovers custom endpoints |
 
-Inventory, comparable recent sales and shipping-location economics are required for the smart Stage 2 engine. The fixed concession schedule below describes the initial fixture, not the final policy. Follow `EON-DATA-CONNECTION.md` for the verified local data sources, connector contract and implementation sequence.
+No automatic timeline or guaranteed uplift: checkout readiness, traffic and data quality govern progression.
 
-## Product decision
+## Pilot release and expansion gate
 
-Build Stage 2 first: an optional “Make an offer” experience on eligible product pages. A customer proposes a price, receives an approved counteroffer, accepts it and completes the merchant's existing checkout. The engine is reusable across merchants; EON is the pilot tenant, not a hard-coded platform dependency.
+1. **Usability:** House of EON owner independently completes setup, runs a test, finds an order and pauses negotiation; record observed time, errors and help requests. Suggested goal ≤15 minutes after store connection and commercial data are ready; agree the target before evaluation.
+2. **Functional:** genuine staging payment, signed paid webhook and reconciliation succeed; then at least one production paid order is traceable through assignment/session/offer/checkout/order. One order proves plumbing, not conversion lift.
+3. **Economics:** zero floor or budget breaches; actual cost/tax basis reconciles; non-negative incremental contribution within the agreed experiment threshold. Refunds, credits and gifts count as costs/liabilities.
+4. **Incrementality:** freeze an experiment plan before launch using EON's baseline conversion, a minimum detectable lift, sample-size/power calculation and observation window. Compare intention-to-treat visitors with sticky control/treatment assignment. Report intervals; if underpowered, say inconclusive and do not expand on anecdotal sales.
+5. **Owner confidence:** owner understands dashboard definitions, finds useful insights, approves ongoing operational effort and signs off expansion.
 
-Success means increased contribution profit per eligible visitor, not merely more accepted offers. The AI explains and understands; the pricing service owns every commercial decision.
+Pause immediately on incorrect totals, floor/stock violations, attribution failures, provider failures above the approved threshold or owner override. Continue EON iteration if lift is negative/inconclusive. “Recovered revenue” is attributed paid recovery revenue; incremental recovery requires a holdout.
 
-## MVP scope
+## Next implementation work
 
-Include INR, quantity one, selected in-stock perfume variants, three rounds, a 15-minute session, explicit expiry, context-sensitive concessions (inventory, comparable sales and shipping economics), merchant floor and discount cap, daily subsidy cap, kill switch, checkout handoff, payment reconciliation, merchant login and a compact performance dashboard. The customer sees item price and any conditions before accepting; shipping/tax totals are finalized by the merchant checkout. Use existing EON checkout if its backend can enforce the offer securely.
-
-Merchant workflow: connect catalog → enter validated floor/cap/budget per variant → preview price scenarios → publish policy version → enable a small traffic cohort → inspect paid orders and margins → pause instantly if necessary.
-
-Customer workflow: eligible product → start session → type request or numeric offer → confirm extracted price if ambiguous → deterministic decision → accept current quote → server creates checkout → pay → verified webhook records purchase.
-
-Exclude bundles, quantity bargaining, multiple currencies, automatic free shipping, COD-specific incentives, customer-specific willingness-to-pay scoring, autonomous purchasing, cross-store agents and Shopify app marketplace distribution. Do not promise prepaid-only pricing unless the actual checkout can enforce it. English first; add Hindi only after evaluated intent parsing.
-
-## Phases and acceptance gates
-
-Estimates assume one full-time developer with timely merchant access; discovery may change them.
-
-| Phase | Estimate | Deliverables | Exit gate |
-|---|---|---|---|
-| 0: discovery | 2–3 days | Confirm EON stack, catalog/variant IDs, tax basis, costs, checkout APIs, stock, permissions and owner-approved policy | One sandbox order proves server-controlled amount and webhook verification |
-| 1: foundations | 1 week | Supabase projects, auth, migrations, tenant isolation, catalog sync, versioned policy editor, audit | Cross-tenant and unauthorized policy tests pass; stale catalog fails closed |
-| 2: Stage 2 experience | 1 week | Embedded widget, durable sessions, structured AI intent extraction, deterministic pricing, expiry, abuse controls | Model cannot change prices; retries and parallel requests cannot add rounds |
-| 3: checkout | 1–2 weeks | Offer acceptance transaction, budget reserve, outbox worker, EON adapter, signed webhooks and recovery | Replay, changed cart, duplicate payment, failed provider and refund tests pass |
-| 4: controlled pilot | 1–2 weeks | Feature flag, dashboard, control cohort, operational alerts and support procedure | No guardrail breaches; contribution per visitor meets predeclared success rule |
-| 5: expand Stage 2 | 2–4 weeks | More EON variants, multi-merchant onboarding, optional Shopify adapter, language evaluation | Second merchant onboarded without changing rules engine |
-| 6: Stage 3 | separate discovery | Authenticated agent quote/accept API, consent receipts, quotas, protocol adapters | An actual partner agent completes authorized sandbox flow |
-
-Do not schedule Stage 3 as a promise that ChatGPT will discover a custom negotiation endpoint. Protocol availability, negotiation extension support and platform onboarding must be validated separately.
-
-## Pilot and analytics
-
-Assign eligible visitors to stable control/treatment cohorts before widget exposure; start with a small cohort (e.g. 10% of eligible traffic), retaining a control group. Fix policy versions during each experiment. Compute a sample-size plan using EON baseline conversion before interpreting results; no fixed promised uplift or significance from tiny samples.
-
-Primary metric: contribution profit / eligible assigned visitor. Contribution = net revenue excluding tax − COGS − fulfillment − payment fees − shipping subsidy − refunds/returns allowance − AI and variable service cost. Floor setup must use the same tax/cost basis. Compare treatment against control; account for customers who would have bought at full price.
-
-Secondary metrics: widget start / exposure; offers / session; accepted / sessions; verified paid / accepted; paid orders / eligible visitors; average discount vs actual current selling price; revenue/order; checkout failures; refund rate; latency p50/p95; model cost/session. Never equate a checkout redirect with revenue.
-
-Events: experiment_assigned, widget_viewed, session_started, intent_parsed, clarification_required, offer_created, offer_accepted, offer_expired, checkout_requested, checkout_ready, payment_confirmed, payment_failed, refund_recorded, policy_published, guardrail_denied, rate_limited. Each uses event ID, merchant ID, pseudonymous visitor/session ID, channel, policy version, variant ID, experiment arm, UTC timestamp, schema version and request correlation ID. Financial events originate server-side; validate any browser event. Dedupe payment events by provider order/payment IDs.
-
-Operational targets for pilot: zero below-floor orders, zero duplicate redemptions; rule processing p95 under 200 ms excluding network; conversational response p95 under 3 seconds with template fallback; checkout failure below 1%. Targets are launch criteria to validate, not measured claims. Pause on any margin breach or signature verification anomaly; investigate a material failure spike.
-
-## Decisions required before the live pilot
-
-EON owner confirms backend and access, authoritative variant/stock feed, actual floors/costs and tax treatment, shipping/discount stacking policy, daily subsidy budget, refund process, customer support owner, data retention and pilot cohort. Until then all sample economics remain disabled in production.
+Merge the sandbox components into authenticated onboarding; do not wire client fixture logic to public shopper traffic. Integrate server modules with the existing transactional live service. Apply migration 006 to an isolated Neon development branch only after SQL/isolation tests. Build real cohort analytics and recovery worker before pilot activation. Production remains disabled until signed-off gates pass.

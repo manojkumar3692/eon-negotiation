@@ -1,15 +1,16 @@
 "use client";
-import {useState} from "react";
+import {useState,useRef} from "react";
 
 const money=(minor,currency)=>new Intl.NumberFormat("en",{style:"currency",currency}).format(minor/100);
-export default function OfferChat({publicKey,productId,variantId,currency}) {
+export default function OfferChat({publicKey,productId,variantId,currency,surface="dedicated_page",signals={},visitorId,recoveryToken}) {
+  const visitor=useRef(null);if(!visitor.current&&typeof window!=="undefined"){try{visitor.current=visitorId||sessionStorage.getItem("eon-visitor")||crypto.randomUUID();sessionStorage.setItem("eon-visitor",visitor.current);}catch{visitor.current=crypto.randomUUID();}}
   const [session,setSession]=useState(null),[messages,setMessages]=useState([]),[text,setText]=useState(""),[postal,setPostal]=useState(""),[country,setCountry]=useState("IN"),[busy,setBusy]=useState(false),[error,setError]=useState(""),[confirm,setConfirm]=useState(false),[quote,setQuote]=useState(null);
   async function request(path,body,token=session?.sessionToken) {
     setBusy(true);setError("");
     try {const response=await fetch(`/api/negotiate/${path}`,{method:"POST",headers:{"Content-Type":"application/json",...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(body)}),value=await response.json();if(!response.ok)throw Error(value.error||"Request failed");return value;}
     finally{setBusy(false);}
   }
-  async function start() {try {const value=await request("start",{publicKey,cart:{currency,lines:[{productId,variantId,quantity:1}],promotionCodes:[],paymentMethod:"prepaid",destination:postal?{country:country.toUpperCase(),postalCode:postal}:null}},null);setSession(value);setMessages([{role:"assistant",content:value.message}]);}catch(e){setError(e.message);}}
+  async function start() {try {const value=await request("start",{publicKey,surface,signals,visitorId:visitor.current,recoveryToken,cart:{currency,lines:[{productId,variantId,quantity:1}],promotionCodes:[],paymentMethod:"prepaid",destination:postal?{country:country.toUpperCase(),postalCode:postal}:null}},null);setSession(value);setMessages([{role:"assistant",content:value.message}]);}catch(e){setError(e.message);}}
   async function send(e){e.preventDefault();const value=text.trim();if(!value)return;setText("");setMessages(m=>[...m,{role:"customer",content:value}]);try{const result=await request(`${session.sessionId}/message`,{message:value});setMessages(m=>[...m,{role:"assistant",content:result.message}]);setConfirm(Boolean(result.confirmTarget));}catch(e){setError(e.message);}}
   async function confirmOffer(){try{const result=await request(`${session.sessionId}/confirm`,{});setMessages(m=>[...m,{role:"assistant",content:result.message}]);setConfirm(false);setQuote(result.quote||null);}catch(e){setError(e.message);}}
   async function accept(){try{const result=await request(`${session.sessionId}/accept`,{quoteId:quote.id,idempotencyKey:crypto.randomUUID()});window.location.assign(result.checkoutUrl);}catch(e){setError(e.message);}}

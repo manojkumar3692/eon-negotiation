@@ -1,40 +1,54 @@
-# API contract v1 — target design
+# API contracts and implementation status
 
-These endpoints are a specification for the next build. Only local `POST /api/demo` is implemented. Never direct a real storefront to the demo.
+> Live dashboard update: see [the integrated release status](LIVE-DASHBOARD-RELEASE.md). Authenticated saved controls now supersede the earlier sandbox-only status below. Checkout/channel limitations remain explicit.
 
-JSON, UTF-8, integer paise, INR. UUID resource IDs, UTC ISO-8601 timestamps. Maximum message length 1000 characters and body 8 KB. Mutating calls require `Idempotency-Key` (UUID recommended). Persist key for at least 24 hours; same key and body returns stored response, changed body returns 409. Error format: `{ "error": { "code": "OFFER_EXPIRED", "message": "Please request a new offer", "requestId": "..." } }`. Responses containing sessions/offers use `Cache-Control: no-store`.
+Existing `/api/platform/...`, `/api/negotiate/...` and signed custom/Shopify webhook routes remain unchanged. The endpoints below are the next-stage contract, NOT mounted production endpoints. No future endpoint should be exposed until tenant auth, schema validation, distributed rate limits and persistence are integrated.
 
-| Method / route | Input | Success | Authorization |
-|---|---|---|---|
-| POST /v1/sessions | signed integration bootstrap, variantId, quantity:1 | 201 sessionId, capability, expiresAt, currentPricePaise, currency | verified installed merchant bootstrap; abuse limits |
-| POST /v1/sessions/:id/messages | message OR targetPaise, currency | 200 decision, offer or clarification, roundsRemaining | session capability bound to tenant/session |
-| GET /v1/sessions/:id | none | 200 current public state | same capability |
-| POST /v1/offers/:id/accept | sessionId, cartFingerprint | 202 redemptionId, status:pending | session capability + current quote ownership |
-| GET /v1/redemptions/:id | none | 200 status, checkoutUrl when ready | owner capability; allowlisted checkout host |
-| POST /v1/webhooks/:provider | raw signed payload | 200 on processed/duplicate, 202 on durable queue | provider signature and expected account |
-| GET /v1/admin/policies | variantId filter | 200 tenant policies | verified Supabase JWT + membership |
-| POST /v1/admin/policies | full new policy version, expectedVersion | 201 immutable version | owner/operator; optimistic concurrency |
-| POST /v1/admin/pause | enabled:false | 200 disabled | owner/operator; audited |
-| GET /v1/admin/analytics | date range, cohort | 200 aggregates | merchant member |
+Money is integer minor units with ISO currency. API version `v1`, UTC times, request IDs. No private floor/cost/score data in shopper responses. Merchant session authentication uses current Neon Auth. Shopper sessions use random scoped credentials; future agents use scoped OAuth/API credentials and never merchant cookies.
 
-Session capability is a random 256-bit bearer secret stored hashed; never log it or put it in URLs. Browser delivery/storage depends on verified EON integration (same-origin HttpOnly cookie preferred; cross-origin short-lived capability in memory). A random session ID is not production authentication. Integration bootstrap signatures and expiration must be validated. Stage 3 replaces shopper capability bootstrap with delegated agent credentials; it does not bypass authorization.
+| Method / route | Principal | Purpose |
+|---|---|---|
+| GET/PUT `/api/v1/merchant/onboarding` | owner | Read/save draft step and revision; If-Match prevents lost updates |
+| POST `/api/v1/merchant/import` | owner | Validate catalog preview then confirm import; never approve floors automatically |
+| POST `/api/v1/merchant/policies` | owner | Validate and create immutable per-SKU rules version |
+| POST `/api/v1/merchant/triggers` | owner | Publish validated trigger version, exclusions and caps |
+| POST `/api/v1/merchant/simulate` | owner | Same core rules on isolated inputs; no commerce side effects |
+| POST `/api/v1/merchant/activate` | owner | Verify readiness records server-side, merchant allowlist and experiment; not checkbox claims |
+| POST `/api/v1/merchant/pause` | owner | Pause invites/accepts and audit reason; reconcile committed work |
+| GET `/api/v1/merchant/funnel` | merchant member | Server aggregates, filter mode/date/product/cohort; enforce data permissions |
+| POST `/api/v1/eligibility` | scoped installation/session | Normalize behavior, fetch verified facts, return state + public reason category |
+| POST `/api/v1/sessions` | shopper/agent | Revalidate eligibility, persist policy/trigger/cohort/cart, issue session credential |
+| POST `/api/v1/sessions/:id/messages` | session | Interpret bounded natural-language request; clarify structured intent |
+| POST `/api/v1/sessions/:id/quotes` | session | Confirm intent, generate safe candidates and return public quote |
+| POST `/api/v1/quotes/:id/accept` | session | Idempotent atomic acceptance, grant consumption, budget reserve and checkout outbox |
+| POST `/api/v1/recovery/exchange` | one-use opaque grant | Exchange hashed expiring cart-bound recovery token; no consumption on GET |
+| POST `/api/v1/events` | scoped telemetry | Allowlisted non-monetary browser events; cannot claim paid orders |
+| POST `/api/v1/webhooks/:provider` | signed provider | Verify signature, replay window, merchant and payment; deduplicate and reconcile |
 
-Example quote request:
+## Example quote request
 
 ```json
-{"targetPaise":90000,"currency":"INR"}
+{"intent":{"quantity":2,"requestedType":"quantity","targetTotalMinor":180000,"currency":"INR"},"cartRevision":"opaque-revision","confirmed":true}
 ```
 
-Example response:
+Amounts must explicitly state item-only versus all-in scope. Requests carry SKU/cart references, not caller-authorized floor, tax, stock or shipping costs. Server rebuilds verified context. AI output is validated against this schema and cannot add commercial fields.
+
+## Example public response
 
 ```json
-{"decision":"counteroffer","offer":{"id":"uuid","amountPaise":95904,"currency":"INR","quantity":1,"expiresAt":"2026-09-21T18:15:00Z","conditions":{"shipping":"calculated_at_checkout","tax":"confirmed_at_checkout"}},"roundsRemaining":2}
+{"quoteId":"opaque-id","status":"counteroffer","type":"quantity","itemMinor":190000,"shippingMinor":5000,"totalMinor":195000,"currency":"INR","terms":{"quantity":2},"expiresAt":"2026-09-23T14:15:00Z"}
 ```
 
-No floor, margin, policy internals, token hash or customer history in public serializers. Offer acceptance means a quote can be redeemed, not that payment occurred. `checkoutUrl` exists only after provider reconciliation succeeds.
+Example figures are fictional. Production tax/invoice breakdown must be explicit before acceptance. Unknown tax or destination means clarification/unavailable, not guessed all-in pricing.
 
-Errors: 400 malformed or ambiguous numeric request; 401 missing/invalid auth; 404 resource not owned/not found (avoid existence leaks); 409 idempotency mismatch, stale quote/cart or exhausted rounds; 410 expired; 422 ineligible product/currency/quantity; 429 quota with Retry-After; 503 paused, stale catalog or unavailable dependency. AI ambiguity normally returns a 200 clarification without consuming a price round.
+## Accept, idempotency and errors
 
-Future agent endpoint `POST /v1/agent/quotes` maps to the same service after validating scopes, buyer delegation and merchant allowlist. No protocol compatibility claim until an adapter passes a partner integration test.
+Require `Idempotency-Key` for mutation retries, bind request hash, principal and route. First accept returns 202 + attempt ID while checkout is created; repeat identical request returns same attempt/URL; changed payload → 409. Never consume a second token/budget reservation for retries. Persist inbox/outbox transitions with backoff, attempt limits and dead-letter diagnostics.
 
-Local demo API: `{action:"start"}` returns `{id,expiresAt,demo:true}`; `{id,target:"900"}` returns a template reply and public decision. IDs are local-only bearer handles; no checkout or durable authorization exists.
+400 invalid/ambiguous data; 401 missing/invalid credential; 403 forbidden tenant/channel; 409 stale revision/policy/stock; 410 expired/revoked; 422 unsupported/unavailable concession; 429 rate/spend limit with Retry-After; 503 provider unavailable. Do not expose internal floor reasons, secrets or stack traces. Session pause invalidates new accepts; existing payment reconciliation continues.
+
+## Connector capability extension
+
+Existing providers implement the v3 price-only baseline. Before enabling new concessions, advertise exact supported terms (`price`, `shipping`, `sample`, `quantity`, `prepaid`, `credit`, `approved_terms`) and enforce every accepted term. A capability boolean is insufficient without acceptance tests. The extension interface in `modules/connect` is a scaffold; update the normalized contract and provider implementations together.
+
+The detailed earlier implemented routes are preserved in [the historical API reference](history/API.md); use current route source as the final authority for existing endpoint behavior.
