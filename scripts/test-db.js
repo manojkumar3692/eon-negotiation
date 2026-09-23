@@ -75,15 +75,40 @@ try {
     floorMinor: 8000,
     stock: 41,
   });
+  await tenant(a, (c) =>
+    c.query(
+      `insert into negotiation.products(workspace_id,sku,name,price_minor,floor_minor,stock,source,external_product_id,external_variant_id)
+       values($1,'SYNC-OLD','Synchronized product',10000,8000,5,'custom','product-1','variant-1')
+       on conflict(workspace_id,external_variant_id) where external_variant_id is not null
+       do update set sku=excluded.sku`,
+      [wa.id],
+    ),
+  );
+  await tenant(a, (c) =>
+    c.query(
+      `insert into negotiation.products(workspace_id,sku,name,price_minor,floor_minor,stock,source,external_product_id,external_variant_id)
+       values($1,'SYNC-NEW','Synchronized product',10000,8000,5,'custom','product-1','variant-1')
+       on conflict(workspace_id,external_variant_id) where external_variant_id is not null
+       do update set sku=excluded.sku`,
+      [wa.id],
+    ),
+  );
+  const synchronized = await tenant(a, (c) =>
+    c.query(
+      "select sku from negotiation.products where workspace_id=$1 and external_variant_id='variant-1'",
+      [wa.id],
+    ),
+  );
+  assert.equal(synchronized.rows[0].sku, "SYNC-NEW");
   let data = await state(a, wa.id);
-  assert.equal(data.products.length, 1);
-  assert.equal(data.products[0].stock, 41);
+  assert.equal(data.products.length, 2);
+  assert.equal(data.products.find((product) => product.sku === "A").stock, 41);
   await assert.rejects(() =>
     mutate(a, wa.id, "import", {
       csv: "sku,name,price,floor,stock\nB,Valid,10,8,1\nC,Invalid,1,8,1",
     }),
   );
-  assert.equal((await state(a, wa.id)).products.length, 1);
+  assert.equal((await state(a, wa.id)).products.length, 2);
   await mutate(a, wa.id, "policy", { config: data.policy, expectedVersion: 1 });
   await assert.rejects(
     () =>
