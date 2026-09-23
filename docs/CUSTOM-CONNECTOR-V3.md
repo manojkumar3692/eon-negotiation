@@ -58,3 +58,5 @@ The platform verifies the signature, deduplicates `eventId`, updates checkout st
 7. Platform tests a real cart, destination and checkout capability without creating an order.
 8. Merchant installs the widget in testing mode.
 9. Production activation requires domain verification and a successful cart test.
+
+The dashboard presents the generated values as `NEGOTIATION_WORKSPACE_ID`, `NEGOTIATION_INSTALLATION_ID`, `NEGOTIATION_CONNECTOR_SECRET` and `NEGOTIATION_ENABLED`. They belong only in the merchant backend. Saving the endpoint does not rotate the secret; the separate rotation action revokes the previous secret. A catalog-only implementation remains read-only and does not expose live-cart testing or activation controls.

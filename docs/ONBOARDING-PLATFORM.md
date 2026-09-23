@@ -1,6 +1,6 @@
 # Multi-merchant onboarding and integration design
 
-Updated 22 September 2026. Working project: eon-negotiation. House of EON is the first reference customer. The platform uses Neon; merchants retain their own database and checkout authority.
+Updated 23 September 2026. Working project: eon-negotiation. House of EON is the first reference customer. The platform uses Neon; merchants retain their own database and checkout authority.
 
 ## Product model
 
@@ -12,7 +12,7 @@ The current live contract deliberately starts with a one-line cart. It supports 
 
 | Merchant system | Connection | Data stays with | Status |
 |---|---|---|---|
-| Custom/Supabase/Postgres | Merchant-owned HTTPS connector v3 | Merchant | Implemented; EON staging adapter next |
+| Custom/Supabase/Postgres | Merchant-owned HTTPS connector v3 | Merchant | Implemented; House of EON catalog/inventory connected read-only |
 | Shopify | Standalone OAuth app | Shopify | Adapter implemented; real development-store acceptance pending |
 | Manual/CSV | Dashboard upload | Neon platform catalog | Implemented for simulation and floor review |
 | WooCommerce | Future scoped REST/plugin adapter | WooCommerce | Planned after pilot |
@@ -81,6 +81,10 @@ Payment, cancellation, refund and uninstall webhooks are verified using the raw 
 8. **Real cart:** fresh price, stock, economics, destination, payment and checkout support pass.
 9. **Widget:** merchant copies the snippet containing public workspace, product and variant identifiers.
 10. **Activation:** requires domain verification and ready connector. Pause remains the kill switch.
+
+Catalog synchronization and negotiation readiness are separate states. A connector that provides only catalog and inventory remains read-only: the platform may show its latest stock snapshot and allow merchant-only simulation, but it does not show a widget, test unsupported checkout in a retry loop or permit activation. Exact-cart economics, enforceable idempotent checkout, reconciliation and payment events must all be present before the live-cart gate opens.
+
+For a reusable one-time merchant developer brief, see [CUSTOM-MERCHANT-HANDOFF.md](CUSTOM-MERCHANT-HANDOFF.md).
 
 The global `NEGOTIATION_ENABLED` switch remains false until the first full staging checkout and webhook reconciliation pass.
 

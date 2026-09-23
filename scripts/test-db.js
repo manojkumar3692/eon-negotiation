@@ -103,6 +103,9 @@ try {
   let data = await state(a, wa.id);
   assert.equal(data.products.length, 2);
   assert.equal(data.products.find((product) => product.sku === "A").stock, 41);
+  assert.equal(data.liveMetrics.catalog_connections, 0);
+  assert.equal(data.liveMetrics.inventory_snapshot_connections, 0);
+  assert.equal(data.liveMetrics.checkout_connections, 0);
   await assert.rejects(() =>
     mutate(a, wa.id, "import", {
       csv: "sku,name,price,floor,stock\nB,Valid,10,8,1\nC,Invalid,1,8,1",

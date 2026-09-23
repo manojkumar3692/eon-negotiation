@@ -41,6 +41,7 @@ import {
 import { simulate } from "../lib/simulate.js";
 import StoreConnection from "./StoreConnection.js";
 import { authClient } from "../lib/auth-client.js";
+import { catalogSource } from "../lib/connector-ui.js";
 const ids = [
   "11111111-1111-4111-8111-111111111111",
   "22222222-2222-4222-8222-222222222222",
@@ -793,12 +794,16 @@ export default function Dashboard({ demo = false, user }) {
                       {[
                         [
                           "Catalog & pricing",
-                          data.products.length ? "Manual data" : "Not added",
+                          data.liveMetrics?.catalog_connections
+                            ? "Synchronized catalog"
+                            : data.products.length
+                              ? "Manual data"
+                              : "Not added",
                           !!data.products.length,
                         ],
-                        ["Live availability", data.liveMetrics?.ready_connections ? "Verified" : "Not connected", !!data.liveMetrics?.ready_connections],
-                        ["Delivery economics", data.liveMetrics?.ready_connections ? "Connector checked" : "Not connected", !!data.liveMetrics?.ready_connections],
-                        ["Checkout enforcement", data.liveMetrics?.ready_connections ? "Idempotent handoff ready" : "Not connected", !!data.liveMetrics?.ready_connections],
+                        ["Availability", data.liveMetrics?.ready_connections ? "Verified for an exact cart" : data.liveMetrics?.inventory_snapshot_connections ? "Latest synchronized snapshot" : "Not connected", !!data.liveMetrics?.inventory_snapshot_connections],
+                        ["Delivery economics", data.liveMetrics?.economics_connections ? "Verified for an exact cart" : "Not connected", !!data.liveMetrics?.economics_connections],
+                        ["Checkout enforcement", data.liveMetrics?.checkout_connections ? "Checkout and events verified" : "Not connected", !!data.liveMetrics?.checkout_connections],
                       ].map(([label, status, done]) => (
                         <div className="data-line" key={label}>
                           <span>
@@ -908,7 +913,7 @@ export default function Dashboard({ demo = false, user }) {
               )}
               {tab === "Connections" && (
                 <>
-                  {!demo && <StoreConnection key={workspace.id} workspace={workspace} products={data.products} />}
+                  {!demo && <StoreConnection key={workspace.id} workspace={workspace} products={data.products} onWorkspaceChanged={refresh} />}
                   <div className="connector-toolbar">
                     <div className="filter-tabs">
                       {categories.map((c) => (
@@ -1056,7 +1061,7 @@ export default function Dashboard({ demo = false, user }) {
                                 </Pill>
                               </td>
                               <td>
-                                <span className="muted">Manual snapshot</span>
+                                <span className="muted"><strong>{catalogSource(p.source).label}</strong><small>{catalogSource(p.source).detail}</small></span>
                               </td>
                               <td>
                                 <button
@@ -1247,6 +1252,7 @@ export default function Dashboard({ demo = false, user }) {
                         </div>
                         <Pill tone="amber">Simulation</Pill>
                       </div>
+                      <div className="notice"><div><strong>Scenario only; no customer offer is created.</strong><p>Saved catalog values may be synchronized snapshots. Minimum prices and cost or shipping inputs must be reviewed by the merchant before they can support a live offer.</p></div></div>
                       <form
                         onSubmit={runSimulation}
                         onChange={() => setResult(null)}

@@ -72,6 +72,7 @@ async function handle(req, ctx) {
         409,
       );
     if (e.message.startsWith("Connector:")) return json({error:e.message.slice(11)},400);
+    if (e.message.startsWith("CONNECTOR_")) return json({error:e.message},400);
     if (e instanceof ZodError)
       return json({ error: e.issues[0]?.message || "Check your input" }, 400);
     if (

@@ -19,6 +19,14 @@ test("custom endpoints stay on the verified company domain and public network",a
   assert.equal(await validateCustomEndpoint("https://api.example.com/negotiation/v3","example.com",{env,resolver:publicResolver}),"https://api.example.com/negotiation/v3");
   await assert.rejects(validateCustomEndpoint("https://attacker.example/negotiation/v3","example.com",{env,resolver:publicResolver}));
   await assert.rejects(validateCustomEndpoint("https://api.example.com/negotiation/v3","example.com",{env,resolver:async()=>[{address:"127.0.0.1",family:4}]}));
+  await assert.rejects(validateCustomEndpoint("https://api.example.com/negotiation/v3","example.com",{env,resolver:async()=>{throw Error("ENOTFOUND");}}),/CONNECTOR_DNS_UNRESOLVED/);
+});
+
+test("custom connector reports actionable non-sensitive HTTP and schema failures",async()=>{
+  const secret="x".repeat(43),installation={id:installationId,workspace_id:workspaceId,workspace_domain:"example.com",endpoint:"https://api.example.com/negotiation/v3",credential_ciphertext:seal(secret,`${workspaceId}:${installationId}`,env)},options={env,now:()=>now,resolver:async()=>[{address:"8.8.8.8",family:4}]};
+  await assert.rejects(callCustomConnector(installation,"capabilities",{}, {...options,fetcher:async()=>new Response("Authentication Required",{status:401,headers:{"content-type":"text/html"}})}),/CONNECTOR_HTTP_401_NON_JSON/);
+  await assert.rejects(callCustomConnector(installation,"capabilities",{}, {...options,fetcher:async()=>Response.json({error:"nonce storage unavailable"},{status:503})}),/CONNECTOR_NONCE_STORAGE_UNAVAILABLE/);
+  await assert.rejects(callCustomConnector(installation,"capabilities",{}, {...options,fetcher:async()=>Response.json({...envelope("capabilities"),capabilities:{catalog:true}})}),/CONNECTOR_SCHEMA_INVALID/);
 });
 
 test("signed custom requests bind tenant, installation, cart and response freshness",async()=>{
