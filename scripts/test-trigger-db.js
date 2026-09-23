@@ -29,8 +29,8 @@ try{
  const installation={id:iid,workspace_id:wid},product={id:pid,commerce_facts:facts},settings={version:1};
  await assert.rejects(()=>service(c=>readInvitation(c,installation,product,settings,{...input,visitorId:randomUUID(),invitationToken:invite.invitationToken})),/NEGOTIATION_UNAVAILABLE/);
  const context={operation:'context',currency:'INR',taxBasis:'inclusive',line:{quantity:1,unitPriceMinor:99900,availableToSell:50,approvedFloorMinor:70000,fulfillmentType:'physical'},shipping:{serviceable:true,merchantCostMinor:5000,customerChargeMinor:0},payment:{supported:true,feeMinor:0},checkoutSupported:true};
- const start={...input,invitationToken:invite.invitationToken,signals:{visits:100,dwellSeconds:3600}};
- const gates=await Promise.allSettled([service(c=>gateSession(c,installation,product,context,{...start})),service(c=>gateSession(c,installation,product,context,{...start}))]);assert.equal(gates.filter(g=>g.status==='fulfilled'&&g.value.allowed).length,1);assert.equal(gates.filter(g=>g.status==='rejected').length,1);
+ const start={...input,invitationToken:invite.invitationToken,signals:{visits:0,dwellSeconds:0}};
+ const gates=await Promise.allSettled([service(c=>gateSession(c,installation,product,context,{...start})),service(c=>gateSession(c,installation,product,context,{...start}))]);assert.equal(gates.filter(g=>g.status==='fulfilled'&&g.value.allowed).length,1);assert.equal(gates.filter(g=>g.status==='rejected').length,1);assert.deepEqual(start.signals,{visits:0,dwellSeconds:0});
  const assigned=await service(async c=>(await c.query("select count(*)::int n from negotiation.conversion_events where workspace_id=$1 and visitor_key=$2 and event_type='experiment_assigned'",[wid,digest(wid+':'+input.visitorId)])).rows[0].n);assert.equal(assigned,1);
  const second={...input,visitorId:randomUUID()};const secondInvite=await evaluateInvitation(second,origin);assert.equal(secondInvite.eligible,true);
  await invitationEvent({publicKey:key,invitationToken:secondInvite.invitationToken,event:'dismissed'},origin);
