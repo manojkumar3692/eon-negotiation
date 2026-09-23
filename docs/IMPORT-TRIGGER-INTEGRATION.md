@@ -12,6 +12,12 @@ Status: implemented locally; not deployed. Migration 008 must be applied before 
 6. Prove a real paid checkout and refund. Private tester invitation events are sandbox events, not customer experiment evidence. A real tester checkout is still a real order in the existing paid-order funnel. Do not interpret this as measured conversion lift.
 7. Only after validation choose Eligible customers. Customer assignment follows the configured treatment percentage; control visitors receive no invitation.
 
+## House of EON merchant-approved price presentation
+
+Arctic Wave retains a ₹1,249 regular price and ₹999 current selling price. The storefront, ordinary cart and checkout must use ₹999 until the shopper explicitly enters an eligible EON20 code; that code produces ₹799 for the approved single-bottle case. Do not auto-apply the code or replace the default product price with ₹799 for the negotiation integration. Removing the code restores the ordinary ₹999 price. Other product pricing remains merchant-owned.
+
+The connector imports regularMinor=124900 and sellingMinor=99900 separately from coupon metadata. It evaluates only the submitted coupon context with authoritative eligibility, rounding and payable totals. A negotiated checkout uses its signed agreed amount with no additional coupon stacking. No private cost or minimum is inferred from the coupon amount.
+
 ## Catalog extension (connector v3)
 
 All money is integer minor units in the envelope’s store currency. Existing `priceMinor` must mean the current selling price, not MRP. Keep it for compatibility and add `pricing` to every item:
