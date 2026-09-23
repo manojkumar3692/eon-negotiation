@@ -53,8 +53,12 @@ test("successful legacy cart tests retain verified capability presentation", () 
 test("cart testing selects the enabled product rather than the first catalog item",()=>{
  const products=[{id:'disabled',externalVariantId:'d'},{id:'arctic',externalVariantId:'a'}];
  const rules=[{id:'disabled',ready:false},{id:'arctic',ready:true}];
- assert.equal(cartTestSelection(products,rules,'disabled').product.id,'arctic');
+ assert.equal(cartTestSelection(products,rules).product.id,'arctic');
+ assert.equal(cartTestSelection(products,rules,'disabled').product.id,'disabled');
+ assert.equal(cartTestSelection(products,rules,'disabled').ready,false);
+ assert.equal(cartTestSelection(products,rules,'arctic').ready,true);
  assert.deepEqual(cartTestSelection(products,rules).eligible.map(p=>p.id),['arctic']);
- assert.equal(cartTestSelection(products,[]).product,null);
- assert.equal(cartTestSelection(products,undefined).product,null);
+ assert.equal(cartTestSelection(products,[]).product.id,'disabled');
+ assert.equal(cartTestSelection(products,[]).ready,false);
+ assert.equal(cartTestSelection([],undefined).product,null);
 });

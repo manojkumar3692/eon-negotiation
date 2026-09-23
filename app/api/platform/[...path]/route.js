@@ -87,6 +87,7 @@ async function handle(req, ctx) {
     )
       return json({ error: e.message }, 400);
     console.error("Platform request failed", e.code || e.name);
+    if(e.code==='42P01'||e.code==='42703')return json({error:'This database is missing a required schema update. Apply the EON database migrations to the database configured for this environment, then retry.',code:'DATABASE_SCHEMA_OUTDATED'},503);
     return json(
       {
         error: "The workspace could not be saved or loaded. Please try again.",
