@@ -100,6 +100,25 @@ try {
       ),
     /permission denied/,
   );
+  await tenant(a, (c) =>
+    c.query("update negotiation.workspaces set domain_verified=true where id=$1", [
+      wa.id,
+    ]),
+  );
+  await tenant(a, async (c) => {
+    const { rows: [workspace] } = await c.query(
+      "select domain_verified from negotiation.workspaces where id=$1",
+      [wa.id],
+    );
+    assert.equal(workspace.domain_verified, true);
+  });
+  await tenant(b, async (c) => {
+    const result = await c.query(
+      "update negotiation.workspaces set domain_verified=false where id=$1",
+      [wa.id],
+    );
+    assert.equal(result.rowCount, 0);
+  });
   await mutate(a, wa.id, "connector", { connectorId: "shopify" });
   const result = await mutate(a, wa.id, "simulate", {
     productId: data.products[0].id,
@@ -140,7 +159,7 @@ try {
     );
   });
   console.log(
-    "PASS: two-tenant isolation, direct RLS enforcement, catalog upsert, atomic validation, immutable rules, stale-version rejection, connector state, simulation persistence and audit events.",
+    "PASS: two-tenant isolation, direct RLS enforcement, domain verification grant, catalog upsert, atomic validation, immutable rules, stale-version rejection, connector state, simulation persistence and audit events.",
   );
 } finally {
   for (const id of created)
