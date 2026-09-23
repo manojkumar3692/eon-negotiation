@@ -1,3 +1,5 @@
+> Pending local release: see [Store facts and invitation integration](IMPORT-TRIGGER-INTEGRATION.md) for the new import contract, customer preview, tester access and trigger endpoints. Not deployed.
+
 # Merchant and shopper flows
 
 ## Merchant setup

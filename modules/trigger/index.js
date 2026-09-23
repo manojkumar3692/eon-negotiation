@@ -6,6 +6,7 @@ export function eligibility(signals, rule) {
   if (!Number.isSafeInteger(signals.stock) || signals.stock <= rule.lowStock) return no('stock_protected');
   if (rule.excludeNewLaunch && signals.newLaunch) return no('new_launch_excluded');
   if (signals.cooldown || signals.alreadyPurchased) return no('invitation_suppressed');
+  if(rule.match==='visits_and_dwell'&&!(signals.visits>=rule.minVisits&&signals.dwellSeconds>=rule.minDwellSeconds))return no('visit_and_dwell_required');
   const reasons = [];
   if (signals.visits >= rule.minVisits) reasons.push('repeat_interest');
   if (signals.dwellSeconds >= rule.minDwellSeconds) reasons.push('time_considering');

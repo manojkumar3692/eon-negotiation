@@ -1,3 +1,5 @@
+> Pending local release: see [Store facts and invitation integration](IMPORT-TRIGGER-INTEGRATION.md) for the new import contract, customer preview, tester access and trigger endpoints. Not deployed.
+
 # Architecture
 
 > Live dashboard update: see [the integrated release status](LIVE-DASHBOARD-RELEASE.md). Authenticated saved controls now supersede the earlier sandbox-only status below. Checkout/channel limitations remain explicit.

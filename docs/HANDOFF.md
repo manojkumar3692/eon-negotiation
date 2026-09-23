@@ -1,3 +1,5 @@
+> Pending local release: see [Store facts and invitation integration](IMPORT-TRIGGER-INTEGRATION.md) for the new import contract, customer preview, tester access and trigger endpoints. Not deployed.
+
 # Current handoff
 
 Read LIVE-DASHBOARD-RELEASE.md first, then PRODUCT-SPEC.md and ROADMAP.md. EON remains on Neon/Auth; House of EON keeps Supabase.
