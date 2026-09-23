@@ -37,3 +37,14 @@ test("diagnostics stay actionable and catalog sync refreshes the workspace", () 
   assert.equal(shouldRefreshWorkspace("sync"),true);
   assert.equal(shouldRefreshWorkspace("test"),false);
 });
+
+
+test("successful legacy cart tests retain verified capability presentation", () => {
+  const installation={status:"ready",config:{catalogSync:{total:6}},result:{operation:"context",checkoutSupported:true}};
+  const ready=connectorReadiness(installation);
+  assert.equal(ready.catalog,true);
+  assert.equal(ready.negotiationReady,true);
+  assert.deepEqual(ready.missing,[]);
+  assert.equal(connectorReadiness({...installation,status:"failed"}).negotiationReady,false);
+  assert.equal(connectorReadiness({...installation,result:{operation:"context",checkoutSupported:false}}).negotiationReady,false);
+});
